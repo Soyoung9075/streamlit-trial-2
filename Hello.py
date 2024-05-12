@@ -14,6 +14,10 @@
 
 import streamlit as st
 from streamlit.logger import get_logger
+import pandas as pd
+import numpy as np
+import yfinance as yf
+import plotly.express as px
 
 LOGGER = get_logger(__name__)
 
@@ -24,9 +28,19 @@ def run():
         page_icon="👋",
     )
 
-    st.write("# Welcome to Streamlit! 👋")
+    st.write("# Stock Dashboard 👋")
 
-    st.sidebar.success("Select a demo above.")
+    ticker = st.sidebar.text_input('Ticker')
+    start_date = st.sidebar.date_input('Start Date')
+    end_date = st.sidebar.date_input('End Date')
+
+    # Get data on this ticker
+    tickerData = yf.Ticker(ticker)
+
+    # Get the historical prices for this ticker
+    tickerDf = tickerData.history(period = '1d', start = start_date, end = end_date)
+    fig = px.line(tickerDf, x= tickerDf.index, y= tickerDf['Close'], title = ticker)
+    st.plotly_chart(fig)
 
     st.markdown(
         """
