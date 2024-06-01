@@ -7,6 +7,7 @@ import numpy as np
 import yfinance as yf
 import plotly.express as px
 from streamlit_extras.metric_cards import style_metric_cards
+import plotly.graph_objects as go
 
 LOGGER = get_logger(__name__)
 
@@ -47,6 +48,7 @@ def run():
     st.set_page_config(
         page_title="Hello",
         page_icon="👋",
+        layout = 'wide'
     )
 
     # 페이지 제목
@@ -74,7 +76,6 @@ def run():
     col3.metric(label="Dow30", value=f"${dow30_price:,.2f}", delta=f"{dow30_percent:,.3f}%")
     style_metric_cards()
 
-
     # 개별 종목 그래프
 
     ticker = st.sidebar.text_input('Ticker')
@@ -84,24 +85,72 @@ def run():
     # Get data on this ticker
     tickerData = yf.Ticker(ticker)
 
-    # Get the historical prices for this ticker
-    tickerDf = tickerData.history(period = '1d', start = start_date, end = end_date)
-    fig = px.line(tickerDf, x= tickerDf.index, y= tickerDf['Close'], title = ticker)
-    st.plotly_chart(fig)
+    tab1, tab2, tab3 = st.tabs(["ETF", "Tech", "Energy"])
 
-    pricedf = tickerDf.copy()
-    pricedf['%Change'] = (tickerDf['Close'] / tickerDf['Close'].shift(1) - 1)*100
-    pricedf = pricedf[['Open', 'High', 'Low', 'Close', '%Change','Volume', 'Dividends', 'Stock Splits','Capital Gains']]
-    
-    # Function to highlight negative values
-    def highlight_negative(val):
-        color = '#F7727F' if val < 0 else ''
-        return f'background-color: {color}'
+    with tab1:
 
-    # Apply the styling to column '%Change'
-    styled_df = pricedf.style.applymap(highlight_negative, subset=['%Change'])
+        # Get the historical prices for this ticker
+        tickerDf = tickerData.history(period = '1d', start = start_date, end = end_date)
+        fig = px.line(tickerDf, x= tickerDf.index, y= tickerDf['Close'], title = ticker)
+        st.plotly_chart(fig)
+
+        pricedf = tickerDf.copy()
+        pricedf['%Change'] = (tickerDf['Close'] / tickerDf['Close'].shift(1) - 1)*100
+        pricedf = pricedf[['Open', 'High', 'Low', 'Close', '%Change','Volume', 'Dividends', 'Stock Splits','Capital Gains']]
+        
+        # Function to highlight negative values
+        def highlight_negative(val):
+            color = '#F7727F' if val < 0 else ''
+            return f'background-color: {color}'
+
+        # Apply the styling to column '%Change'
+        styled_df = pricedf.style.applymap(highlight_negative, subset=['%Change'])
+        
+        st.dataframe(styled_df)
     
-    st.dataframe(styled_df)
+    with tab2:
+        st.header("Tech stock comparison")
+
+        stocks = st.multiselect('종목', ['AAPL', 'MSFT', 'NVDA', 'GOOG', 'AMZN', 'META'])
+        
+        data = yf.download(stocks, start=start_date, end=end_date)['Close']
+        normalized_data = data / data.iloc[0]
+
+        fig = go.Figure()
+        for stock in stocks:
+            fig.add_trace(go.Scatter(x=normalized_data.index, y=normalized_data[stock], mode='lines', name=stock))
+        fig.update_layout(
+            title='Normalized Close Prices',
+            xaxis_title='Date',
+            yaxis_title='Normalized Close Price')
+        # Show the figure
+        st.plotly_chart(fig)
+
+        col1, col2 = st.columns([0.5, 0.5], gap = 'large')
+        def stock_price_chart(tickerSymbol, start_date, end_date):
+                    tickerData = yf.Ticker(tickerSymbol)
+                    tickerDf = tickerData.history(period = '1d', start = start_date, end = end_date, auto_adjust = True)
+                    fig = px.line(tickerDf, x= tickerDf.index, y= tickerDf['Close'], title = tickerSymbol)
+                    return fig
+
+        with col1 :
+            st.plotly_chart(stock_price_chart("MSFT", start_date, end_date),
+                            use_container_width=True)
+            st.plotly_chart(stock_price_chart("AMZN", start_date, end_date),
+                            use_container_width=True)
+            st.plotly_chart(stock_price_chart("GOOG", start_date, end_date),
+                            use_container_width=True)
+        
+        with col2 : 
+            st.plotly_chart(stock_price_chart("NVDA", start_date, end_date),
+                            use_container_width=True)
+            st.plotly_chart(stock_price_chart("AAPL", start_date, end_date), 
+                            use_container_width=True)
+            st.plotly_chart(stock_price_chart("META", start_date, end_date), 
+                            use_container_width=True)
+
+            
+
 
 
 
